@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import bodyParser from 'body-parser';
+import bodyParser from "body-parser";
 import {
   InteractionType,
   InteractionResponseType,
@@ -16,7 +16,6 @@ import {
 
 // Create an express app
 const app = express();
-const jsonParser = bodyParser.json();
 // Get port, or default to 8080
 const PORT = process.env.PORT || 8080;
 
@@ -25,20 +24,17 @@ const activeGames = {};
 
 function wrappedVerifyKeyMiddleware(clientPublicKey) {
   if (process.env.NODE_ENV == "prod") {
-    
-  console.log('yes', process.env.NODE_ENV);
     return verifyKeyMiddleware(clientPublicKey);
   }
   else {
-    console.log('no', process.env.NODE_ENV);
-    return (req, res, next) => {next();};
+    return bodyParser.json();
   }
 }
 
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
  */
-app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), jsonParser, async function (req, res) {
+app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), async function (req, res) {
   // Interaction type and data
   const { type, id, data } = req.body;
 
@@ -61,20 +57,14 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), js
       });
     }
     // "challenge" guild command
-    if (name === 'challenge' && id) {
+    if (name === 'arknights-news' && id) {
       const userId = req.body.member.user.id;
-      const newsSize = req.body.data.options.length == 0 ? 1 : Math.max(5, req.body.data.options[0].value);
-
-      // Create active game using message ID as the game ID
-      activeGames[id] = {
-        id: userId,
-        objectName,
-      };
+      const newsSize = req.body.data.options ? Math.min(5, req.body.data.options[0].value) : 1;
 
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          content: `Fetch news of size <@${newsSize}>`,
+          content: `Fetch news of size ${newsSize}`,
         },
       });
     }
