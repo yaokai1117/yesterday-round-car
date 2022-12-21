@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import fs from 'fs';
-import https from 'https';
 import express from 'express';
 import {
   InteractionType,
@@ -17,12 +16,10 @@ import {
   HasGuildCommands,
 } from './commands.js';
 
-const key = fs.readFileSync("localhost-key.pem", "utf-8");
-const cert = fs.readFileSync("localhost.pem", "utf-8");
 // Create an express app
 const app = express();
-// Get port, or default to 3000
-const PORT = process.env.PORT || 3000;
+// Get port, or default to 8080
+const PORT = process.env.PORT || 8080;
 // Parse request body and verifies incoming requests using discord-interactions package
 app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY) }));
 
@@ -183,7 +180,7 @@ app.get("/", (req, res, next) => {
   res.send("Hello World\n");
 });
 
-https.createServer({ key, cert }, app).listen(PORT, () => {
+app.listen(PORT, () => {
   console.log('Listening on port', PORT);
 
   // Check if guild commands from commands.js are installed (if not, install them)
