@@ -1,14 +1,13 @@
-import { getRPSChoices } from './game.js';
 import { capitalize, DiscordRequest } from './utils.js';
 
-export async function HasGuildCommands(appId, guildId, commands) {
+export async function createCommandsIfNotExists(appId, guildId, commands) {
   if (guildId === '' || appId === '') return;
 
-  commands.forEach((c) => HasGuildCommand(appId, guildId, c));
+  commands.forEach((c) => createCommandIfNotExists(appId, guildId, c));
 }
 
 // Checks for a command
-async function HasGuildCommand(appId, guildId, command) {
+async function createCommandIfNotExists(appId, guildId, command) {
   // API endpoint to get and post guild commands
   const endpoint = `applications/${appId}/guilds/${guildId}/commands`;
 
@@ -21,7 +20,7 @@ async function HasGuildCommand(appId, guildId, command) {
       // This is just matching on the name, so it's not good for updates
       if (!installedNames.includes(command['name'])) {
         console.log(`Installing "${command['name']}"`);
-        InstallGuildCommand(appId, guildId, command);
+        installGuildCommand(appId, guildId, command);
       } else {
         console.log(`"${command['name']}" command already installed`);
       }
@@ -31,8 +30,7 @@ async function HasGuildCommand(appId, guildId, command) {
   }
 }
 
-// Installs a command
-export async function InstallGuildCommand(appId, guildId, command) {
+export async function installGuildCommand(appId, guildId, command) {
   // API endpoint to get and post guild commands
   const endpoint = `applications/${appId}/guilds/${guildId}/commands`;
   // install command
@@ -43,19 +41,44 @@ export async function InstallGuildCommand(appId, guildId, command) {
   }
 }
 
-// Get the game choices from game.js
-function createCommandChoices() {
-  const choices = getRPSChoices();
-  const commandChoices = [];
+export async function deleteCommands(appId, guildId, commandNames) {
+  if (guildId === '' || appId === '') return;
 
-  for (let choice of choices) {
-    commandChoices.push({
-      name: capitalize(choice),
-      value: choice.toLowerCase(),
-    });
+  commandNames.forEach((name) => deleteCommand(appId, guildId, name));
+}
+
+async function deleteCommand(appId, guildId, name) {
+  // API endpoint to get and post guild commands
+  const endpoint = `applications/${appId}/guilds/${guildId}/commands`;
+
+  try {
+    const res = await DiscordRequest(endpoint, { method: 'GET' });
+    const data = await res.json();
+
+    if (data) {
+      const command = data.find((d) => d['name'] == name);
+      // This is just matching on the name, so it's not good for updates
+      if (command === undefined) {
+        console.log(`"${command['name']}" command is not installed`);
+      } else {
+        console.log(`Deleting "${command['name']}"`);
+        deleteGuildCommand(appId, guildId, command['id']);
+      }
+    }
+  } catch (err) {
+    console.error(err);
   }
+}
 
-  return commandChoices;
+export async function deleteGuildCommand(appId, guildId, commandId) {
+  // API endpoint to get and post guild commands
+  const endpoint = `applications/${appId}/guilds/${guildId}/commands/${commandId}`;
+  // install command
+  try {
+    await DiscordRequest(endpoint, { method: 'DELETE' });
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // Simple test command
@@ -65,17 +88,15 @@ export const TEST_COMMAND = {
   type: 1,
 };
 
-// Command containing options
-export const CHALLENGE_COMMAND = {
-  name: 'challenge',
-  description: 'Challenge to a match of rock paper scissors',
+// Commands to get latest arknigts news.
+export const ARKNIGHTS_NEWS_COMMAND = {
+  name: 'arknights-news',
+  description: 'Get the latests updates of this game.',
   options: [
     {
       type: 3,
-      name: 'object',
-      description: 'Pick your object',
-      required: true,
-      choices: createCommandChoices(),
+      name: 'size',
+      description: 'How many updates do you want',
     },
   ],
   type: 1,
