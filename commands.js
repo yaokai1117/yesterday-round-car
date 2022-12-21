@@ -59,7 +59,7 @@ async function deleteCommand(appId, guildId, name) {
       const command = data.find((d) => d['name'] == name);
       // This is just matching on the name, so it's not good for updates
       if (command === undefined) {
-        console.log(`"${command['name']}" command is not installed`);
+        console.log(`"${name}" command is not installed`);
       } else {
         console.log(`Deleting "${command['name']}"`);
         deleteGuildCommand(appId, guildId, command['id']);

@@ -1,12 +1,9 @@
 import 'dotenv/config';
-import fs from 'fs';
 import express from 'express';
+import bodyParser from 'body-parser';
 import {
   InteractionType,
   InteractionResponseType,
-  InteractionResponseFlags,
-  MessageComponentTypes,
-  ButtonStyleTypes,
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import { getRandomEmoji, DiscordRequest } from './utils.js';
@@ -19,9 +16,9 @@ import {
 
 // Create an express app
 const app = express();
+const jsonParser = bodyParser.json();
 // Get port, or default to 8080
 const PORT = process.env.PORT || 8080;
-app.use(express.json());
 
 // Store for in-progress games. In production, you'd want to use a DB
 const activeGames = {};
@@ -41,7 +38,7 @@ function wrappedVerifyKeyMiddleware(clientPublicKey) {
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
  */
-app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), async function (req, res) {
+app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), jsonParser, async function (req, res) {
   // Interaction type and data
   const { type, id, data } = req.body;
 
