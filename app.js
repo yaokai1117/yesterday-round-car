@@ -63,7 +63,7 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           // Fetches a random emoji to send from a helper function
-          content: `${PUBLIC_FILE_PREFIX}${Math.floor(Math.random() * 16)}.jpg`,
+          content: `${PUBLIC_FILE_PREFIX}cahir/${Math.floor(Math.random() * 16)}.jpg`,
         },
       });
     }
