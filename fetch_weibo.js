@@ -60,7 +60,6 @@ async function populateLongText(weiboPost) {
     console.log(JSON.stringify(data));
     return;
   }
-  console.log(data['data']['text']);
   weiboPost.text = data['data']['text'];
 }
 
