@@ -31,6 +31,9 @@ function wrappedVerifyKeyMiddleware(clientPublicKey) {
   }
 }
 
+// TODO(yaokai): remove this and change to better data store.
+var posts = [];
+
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
  */
@@ -74,7 +77,7 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
       const userId = req.body.member.user.id;
       const newsIndex = req.body.data.options ? Math.min(10, req.body.data.options[0].value) : 1;
 
-      const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
+      // const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
       const post = posts[newsIndex];
       var message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
       if (post.imageUrls.length > 0) {
@@ -108,9 +111,11 @@ app.get("/", async function (req, res, next) {
 // Serve static files.
 app.use('/static', express.static('public'));
 
-app.listen(PORT, () => {
+app.listen(PORT, async function ()  {
   console.log('Listening on port', PORT);
   console.log(process.env.NODE_ENV);
+  
+  posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
   
   createCommandsIfNotExists(process.env.APP_ID, process.env.GUILD_ID, [
     TEST_COMMAND,
