@@ -32,7 +32,7 @@ function wrappedVerifyKeyMiddleware(clientPublicKey) {
 }
 
 // TODO(yaokai): remove this and change to better data store.
-var posts = [];
+let posts = [];
 
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
@@ -103,7 +103,7 @@ app.get("/", async function (req, res, next) {
   if (process.env.NODE_ENV == "prod") { 
    res.send("Hello World\n");
   } else {
-    const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
+    posts.push(...(await fetchLatestPosts(process.env.WEIBO_USER_ID)));
     res.send(JSON.stringify(posts));
   }
 });
@@ -115,7 +115,7 @@ app.listen(PORT, async function ()  {
   console.log('Listening on port', PORT);
   console.log(process.env.NODE_ENV);
   
-  posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
+  posts.push(...(await fetchLatestPosts(process.env.WEIBO_USER_ID)));
   
   createCommandsIfNotExists(process.env.APP_ID, process.env.GUILD_ID, [
     TEST_COMMAND,
