@@ -7,6 +7,7 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import { getRandomEmoji } from './utils.js';
+import { fetchLatestPosts } from './fetch_weibo.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
   CAHIR_COMMAND,
@@ -63,20 +64,30 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           // Fetches a random emoji to send from a helper function
-          content: `${PUBLIC_FILE_PREFIX}cahir/${Math.floor(Math.random() * 16)}.jpg`,
+          content: `${PUBLIC_FILE_PREFIX}cahir/${Math.floor(Math.random() * process.env.NUM_CAHIR_PHOTOS) + 1}.jpg`,
         },
       });
     }
 
-    // "challenge" guild command
+    // "arknights-news" guild command
     if (name === 'arknights-news' && id) {
       const userId = req.body.member.user.id;
       const newsSize = req.body.data.options ? Math.min(5, req.body.data.options[0].value) : 1;
 
+      const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
+      const post = posts[0];
+      var message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
+      if (post.imageUrls.length > 0) {
+        if (post.imageUrls.length <= 3) {
+          message = message + '\n' + post.imageUrls.join(' ');
+        } else {
+          message = message + '\n' + post.imageUrls.join('\n');
+        }
+      }
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          content: `Fetch news of size ${newsSize}`,
+          content: message,
         },
       });
     }
@@ -89,6 +100,7 @@ app.get("/", (req, res, next) => {
   res.send("Hello World\n");
 });
 
+// Serve static files.
 app.use('/static', express.static('public'));
 
 app.listen(PORT, () => {
