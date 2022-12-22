@@ -102,8 +102,8 @@ export const ARKNIGHTS_NEWS_COMMAND = {
   options: [
     {
       type: 3,
-      name: 'size',
-      description: 'How many updates do you want',
+      name: 'index',
+      description: 'See an older post.',
     },
   ],
   type: 1,

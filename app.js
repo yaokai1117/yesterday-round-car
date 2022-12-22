@@ -72,10 +72,10 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
     // "arknights-news" guild command
     if (name === 'arknights-news' && id) {
       const userId = req.body.member.user.id;
-      const newsSize = req.body.data.options ? Math.min(5, req.body.data.options[0].value) : 1;
+      const newsIndex = req.body.data.options ? Math.min(10, req.body.data.options[0].value) : 1;
 
       const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
-      const post = posts[0];
+      const post = posts[newsIndex];
       var message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
       if (post.imageUrls.length > 0) {
         if (post.imageUrls.length <= 3) {
@@ -96,8 +96,13 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
   res.status(400).send('Bad request: unsupported interaction type.');
 });
 
-app.get("/", (req, res, next) => {
-  res.send("Hello World\n");
+app.get("/", async function (req, res, next) {
+  if (process.env.NODE_ENV == "prod") { 
+   res.send("Hello World\n");
+  } else {
+    const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
+    res.send(JSON.stringify(posts));
+  }
 });
 
 // Serve static files.

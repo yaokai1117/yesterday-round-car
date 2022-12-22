@@ -1,8 +1,10 @@
 
 import fetch from 'node-fetch';
+import fs from 'fs';
 import { WeiboPost } from './weibo_utils.js';
 
 const WEIBO_API_PREFIX = 'https://m.weibo.cn/';
+const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/';
 
 // Fetch the last 10 post of a user.
 export async function fetchLatestPosts(userId) {
@@ -31,6 +33,7 @@ export async function fetchLatestPosts(userId) {
     if (post.isLongText) {
     }
     populateLongText(post);
+    repopulateImageUrls(post);
     results.push(post);
   }
 
@@ -56,4 +59,24 @@ async function populateLongText(weiboPost) {
     return;
   }
   weiboPost.text = data['data']['text'];
+}
+
+async function repopulateImageUrls(weiboPost) {
+  const newImageUrls = [];
+  for (const imageUrl of weiboPost.imageUrls) {
+    const filename = imageUrl.substr(imageUrl.lastIndexOf('/') + 1);
+    downloadImage(imageUrl, filename);
+    newImageUrls.push(`${PUBLIC_FILE_PREFIX}${filename}`);
+  }
+  weiboPost.imageUrls = newImageUrls;
+}
+
+async function downloadImage(imageUrl, filename) {
+  const filepath = `./public/images/${filename}`;
+  const res = await fetch(imageUrl);
+  if (!res.ok) {
+    console.log(res.status);
+    console.log(JSON.stringify(data));
+  }
+  res.body.pipe(fs.createWriteStream(filepath));
 }
