@@ -31,9 +31,11 @@ export async function fetchLatestPosts(userId) {
   for (const card of cards) {
     const post = new WeiboPost(card);
     if (post.isLongText) {
+      await populateLongText(post);
     }
-    populateLongText(post);
-    repopulateImageUrls(post);
+    if (post.imageUrls.length != 0) {
+      await repopulateImageUrls(post);
+    }
     results.push(post);
   }
 
@@ -58,6 +60,7 @@ async function populateLongText(weiboPost) {
     console.log(JSON.stringify(data));
     return;
   }
+  console.log(data['data']['text']);
   weiboPost.text = data['data']['text'];
 }
 
