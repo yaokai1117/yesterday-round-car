@@ -6,12 +6,12 @@ import {
   InteractionResponseType,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { getRandomEmoji, DiscordRequest } from './utils.js';
+import { getRandomEmoji } from './utils.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
+  CAHIR_COMMAND,
   TEST_COMMAND,
   createCommandsIfNotExists,
-  deleteCommands,
 } from './commands.js';
 
 // Create an express app
@@ -19,8 +19,7 @@ const app = express();
 // Get port, or default to 8080
 const PORT = process.env.PORT || 8080;
 
-// Store for in-progress games. In production, you'd want to use a DB
-const activeGames = {};
+const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/';
 
 function wrappedVerifyKeyMiddleware(clientPublicKey) {
   if (process.env.NODE_ENV == "prod") {
@@ -56,6 +55,19 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
         },
       });
     }
+    
+    // "cahir" guild command
+    if (name === 'cahir') {
+      // Send a message into the channel where command was triggered from
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          // Fetches a random emoji to send from a helper function
+          content: `${PUBLIC_FILE_PREFIX}${Math.floor(Math.random() * 16)}.jpg`,
+        },
+      });
+    }
+
     // "challenge" guild command
     if (name === 'arknights-news' && id) {
       const userId = req.body.member.user.id;
@@ -77,14 +89,15 @@ app.get("/", (req, res, next) => {
   res.send("Hello World\n");
 });
 
+app.use('/static', express.static('public'));
+
 app.listen(PORT, () => {
   console.log('Listening on port', PORT);
   console.log(process.env.NODE_ENV);
-
-  deleteCommands(process.env.APP_ID, process.env.GUILD_ID, ['challenge']);
   
   createCommandsIfNotExists(process.env.APP_ID, process.env.GUILD_ID, [
     TEST_COMMAND,
     ARKNIGHTS_NEWS_COMMAND,
+    CAHIR_COMMAND,
   ]);
 });

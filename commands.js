@@ -88,7 +88,14 @@ export const TEST_COMMAND = {
   type: 1,
 };
 
-// Commands to get latest arknigts news.
+// Command to show a photo of Cahir!
+export const CAHIR_COMMAND = {
+  name: 'cahir',
+  description: 'Meow!',
+  type: 1,
+}
+
+// Command to get latest arknigts news.
 export const ARKNIGHTS_NEWS_COMMAND = {
   name: 'arknights-news',
   description: 'Get the latests updates of this game.',
