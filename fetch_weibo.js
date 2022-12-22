@@ -4,7 +4,7 @@ import fs from 'fs';
 import { WeiboPost } from './weibo_utils.js';
 
 const WEIBO_API_PREFIX = 'https://m.weibo.cn/';
-const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/';
+const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/images/';
 
 // Fetch the last 10 post of a user.
 export async function fetchLatestPosts(userId) {
