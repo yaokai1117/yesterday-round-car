@@ -7,7 +7,7 @@ import {
   InteractionResponseType,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { getRandomEmoji } from './utils.js';
+import { getRandomEmoji, sendMessage } from './utils.js';
 import { fetchLatestPosts } from './fetch_weibo.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
@@ -70,21 +70,13 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
 
     // "arknights-news" guild command
     if (name === 'arknights-news' && id) {
-      const newsIndex = req.body.data.options ? Math.min(10, req.body.data.options[0].value) : 1;
+      const newsIndex = req.body.data.options ? Math.min(9, req.body.data.options[0].value - 1) : 0;
 
       const post = postDict[sortedPostIds[newsIndex]];
-      var message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
-      if (post.imageUrls.length > 0) {
-        if (post.imageUrls.length <= 3) {
-          message = message + '\n' + post.imageUrls.join(' ');
-        } else {
-          message = message + '\n' + post.imageUrls.join(',\n');
-        }
-      }
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          content: message,
+          content: generateMessageFromPost(post),
         },
       });
     }
@@ -110,7 +102,9 @@ app.listen(PORT, async function ()  {
   console.log(process.env.NODE_ENV);
   
   // Reload from json file.
-  loadFromDataStore();
+  // loadFromDataStore();
+  // Reload by sending RPCs.
+  await regeneratePosts();
   
   // Delete old commands.
   // await deleteCommands(process.env.APP_ID, process.env.GUILD_ID, ['arknights-news', 'cahir']);
@@ -123,8 +117,11 @@ app.listen(PORT, async function ()  {
   ]);
 
   // Fetch new posts every 20 seconds.
-  setInterval(function() {
-    regeneratePosts();
+  setInterval(async function() {
+    const newPostIds = await regeneratePosts();
+    for (const id of newPostIds) {
+      await sendMessage(process.env.CHANNEL_ID, generateMessageFromPost(postDict[id]));
+    }
   }, 20000);
 });
 
@@ -137,6 +134,18 @@ function wrappedVerifyKeyMiddleware(clientPublicKey) {
   }
 }
 
+function generateMessageFromPost(post) {
+  let message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
+  if (post.imageUrls.length > 0) {
+    if (post.imageUrls.length <= 3) {
+      message = message + '\n' + post.imageUrls.join(' ');
+    } else {
+      message = message + '\n' + post.imageUrls.join(',\n');
+    }
+  }
+  return message;
+}
+
 function loadFromDataStore() {
   const storedData = JSON.parse(fs.readFileSync(DATA_STORE_FILE_PATH));
   for (const key in storedData) {
@@ -147,15 +156,17 @@ function loadFromDataStore() {
 
 async function regeneratePosts() {
   try {
-    await fetchLatestPosts(process.env.WEIBO_USER_ID, postDict);
+    const newPostIds = await fetchLatestPosts(process.env.WEIBO_USER_ID, postDict);
     regenerateSortedPostIds();
     fs.writeFileSync(DATA_STORE_FILE_PATH, JSON.stringify(postDict));
+    return newPostIds;
   } catch (error) {
     console.log(error);
     exceptionCount++;
     if (exceptionCount > 100) {
       throw Error('Met more than 100 excpetions, shut down the server.');
     }
+    return [];
   }
 }
 

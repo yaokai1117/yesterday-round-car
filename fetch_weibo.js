@@ -6,7 +6,7 @@ import { WeiboPost } from './weibo_utils.js';
 const WEIBO_API_PREFIX = 'https://m.weibo.cn/';
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/images/';
 
-// Fetch the last 10 post of a user.
+// Fetch the last 10 post of a user, return the new post ids.
 export async function fetchLatestPosts(userId, postDict) {
   // API endpoint to get all posts of a user.
   const url = `${WEIBO_API_PREFIX}api/container/getIndex?containerid=107603${userId}&uid=${userId}`;
@@ -19,6 +19,8 @@ export async function fetchLatestPosts(userId, postDict) {
   });
   
   const data = await res.json();
+  // Posts to be send to the channel.
+  const newPostIds = [];
 
   // Log failures.
   if (!res.ok || data['ok'] != 1 || data['data'] == undefined) {
@@ -30,6 +32,7 @@ export async function fetchLatestPosts(userId, postDict) {
   for (const card of cards) {
     const post = new WeiboPost(card);
     if (post.id in postDict) continue;
+    newPostIds.push(post.id);
     if (post.isLongText) {
       await populateLongText(post);
     }
@@ -38,6 +41,7 @@ export async function fetchLatestPosts(userId, postDict) {
     }
     postDict[post.id] = post;
   }
+  return newPostIds;
 }
 
 async function populateLongText(weiboPost) {

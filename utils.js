@@ -25,6 +25,12 @@ export async function DiscordRequest(endpoint, options) {
   return res;
 }
 
+export async function sendMessage(channelId, message) {
+  await DiscordRequest(`channels/${channelId}/messages`, { method: 'POST', body: {
+    content: message
+  } });
+}
+
 // Simple method that returns a random emoji from list
 export function getRandomEmoji() {
   const emojiList = ['😭','😄','😌','🤓','😎','😤','🤖','😶‍🌫️','🌏','📸','💿','👋','🌊','✨'];
