@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import bodyParser from "body-parser";
+import fs from 'fs';
 import {
   InteractionType,
   InteractionResponseType,
@@ -13,6 +14,7 @@ import {
   CAHIR_COMMAND,
   TEST_COMMAND,
   createCommandsIfNotExists,
+  deleteCommands,
 } from './commands.js';
 
 // Create an express app
@@ -22,17 +24,11 @@ const PORT = process.env.PORT || 8080;
 
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/';
 
-function wrappedVerifyKeyMiddleware(clientPublicKey) {
-  if (process.env.NODE_ENV == "prod") {
-    return verifyKeyMiddleware(clientPublicKey);
-  }
-  else {
-    return bodyParser.json();
-  }
-}
+const DATA_STORE_FILE_PATH = 'datastore.json';
 
-// TODO(yaokai): remove this and change to better data store.
-let posts = [];
+const postDict = {};
+const sortedPostIds = [];
+let exceptionCount = 0;
 
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
@@ -74,17 +70,15 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
 
     // "arknights-news" guild command
     if (name === 'arknights-news' && id) {
-      const userId = req.body.member.user.id;
       const newsIndex = req.body.data.options ? Math.min(10, req.body.data.options[0].value) : 1;
 
-      // const posts = await fetchLatestPosts(process.env.WEIBO_USER_ID);
-      const post = posts[newsIndex];
+      const post = postDict[sortedPostIds[newsIndex]];
       var message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
       if (post.imageUrls.length > 0) {
         if (post.imageUrls.length <= 3) {
           message = message + '\n' + post.imageUrls.join(' ');
         } else {
-          message = message + '\n' + post.imageUrls.join('\n');
+          message = message + '\n' + post.imageUrls.join(',\n');
         }
       }
       return res.send({
@@ -96,15 +90,15 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
     }
   }
   
-  res.status(400).send('Bad request: unsupported interaction type.');
+  res.status(400).send(`Bad request: unsupported interaction type: ${name}`);
 });
 
 app.get("/", async function (req, res, next) {
   if (process.env.NODE_ENV == "prod") { 
    res.send("Hello World\n");
   } else {
-    posts.push(...(await fetchLatestPosts(process.env.WEIBO_USER_ID)));
-    res.send(JSON.stringify(posts));
+    await fetchLatestPosts(process.env.WEIBO_USER_ID. postDict);
+    res.send(JSON.stringify(postDict));
   }
 });
 
@@ -115,11 +109,59 @@ app.listen(PORT, async function ()  {
   console.log('Listening on port', PORT);
   console.log(process.env.NODE_ENV);
   
-  posts.push(...(await fetchLatestPosts(process.env.WEIBO_USER_ID)));
+  // Reload from json file.
+  loadFromDataStore();
   
-  createCommandsIfNotExists(process.env.APP_ID, process.env.GUILD_ID, [
+  // Delete old commands.
+  // await deleteCommands(process.env.APP_ID, process.env.GUILD_ID, ['arknights-news', 'cahir']);
+
+  // Register commands.
+  await createCommandsIfNotExists(process.env.APP_ID, process.env.GUILD_ID, [
     TEST_COMMAND,
     ARKNIGHTS_NEWS_COMMAND,
     CAHIR_COMMAND,
   ]);
+
+  // Fetch new posts every 20 seconds.
+  setInterval(function() {
+    regeneratePosts();
+  }, 20000);
 });
+
+function wrappedVerifyKeyMiddleware(clientPublicKey) {
+  if (process.env.NODE_ENV == "prod") {
+    return verifyKeyMiddleware(clientPublicKey);
+  }
+  else {
+    return bodyParser.json();
+  }
+}
+
+function loadFromDataStore() {
+  const storedData = JSON.parse(fs.readFileSync(DATA_STORE_FILE_PATH));
+  for (const key in storedData) {
+    postDict[key] = storedData[key];
+  }
+  regenerateSortedPostIds();
+}
+
+async function regeneratePosts() {
+  try {
+    await fetchLatestPosts(process.env.WEIBO_USER_ID, postDict);
+    regenerateSortedPostIds();
+    fs.writeFileSync(DATA_STORE_FILE_PATH, JSON.stringify(postDict));
+  } catch (error) {
+    console.log(error);
+    exceptionCount++;
+    if (exceptionCount > 100) {
+      throw Error('Met more than 100 excpetions, shut down the server.');
+    }
+  }
+}
+
+function regenerateSortedPostIds() {
+  const sorted = Object.keys(postDict);
+  sorted.sort((a, b) => b - a);
+  sortedPostIds.length = 0;
+  sortedPostIds.push(...sorted);
+}

@@ -4,3 +4,4 @@ package-lock.json
 *.pem
 *.log
 public/images/*
+datastore.json

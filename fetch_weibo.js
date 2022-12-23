@@ -7,7 +7,7 @@ const WEIBO_API_PREFIX = 'https://m.weibo.cn/';
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/images/';
 
 // Fetch the last 10 post of a user.
-export async function fetchLatestPosts(userId) {
+export async function fetchLatestPosts(userId, postDict) {
   // API endpoint to get all posts of a user.
   const url = `${WEIBO_API_PREFIX}api/container/getIndex?containerid=107603${userId}&uid=${userId}`;
   // Use node-fetch to make requests
@@ -19,27 +19,25 @@ export async function fetchLatestPosts(userId) {
   });
   
   const data = await res.json();
-  const results = [];
 
   // Log failures.
   if (!res.ok || data['ok'] != 1 || data['data'] == undefined) {
     console.log(res.status);
     console.log(JSON.stringify(data));
-    return results;
+    return;
   }
   const cards = data['data']['cards'];
   for (const card of cards) {
     const post = new WeiboPost(card);
+    if (post.id in postDict) continue;
     if (post.isLongText) {
       await populateLongText(post);
     }
     if (post.imageUrls.length != 0) {
       await repopulateImageUrls(post);
     }
-    results.push(post);
+    postDict[post.id] = post;
   }
-
-  return results;
 }
 
 async function populateLongText(weiboPost) {
