@@ -28,6 +28,8 @@ const DATA_STORE_FILE_PATH = 'datastore.json';
 
 const postDict = {};
 const sortedPostIds = [];
+const supportedQueries = ['更新公告', '常驻标准寻访', '新装限时上架'];
+const queryToPostId = {};
 let exceptionCount = 0;
 
 /**
@@ -70,19 +72,34 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
 
     // "arknights-news" guild command
     if (name === 'arknights-news' && id) {
-      const newsIndex = req.body.data.options ? Math.min(9, req.body.data.options[0].value - 1) : 0;
+      let newsIndex = 0;
+      let postId;
+      const options = req.body.data.options;
+      // Parse options if any.
+      if (options != undefined) {
+        for (const option of options) {
+          if (option.name == 'index') {
+            newsIndex = Math.min(9, option.value - 1);
+          }
+          if (option.name == 'query') {
+            postId = queryToPostId[option.value];
+          }
+        }
+      }
+      if (postId == undefined) postId = sortedPostIds[newsIndex];
 
-      const post = postDict[sortedPostIds[newsIndex]];
+      const post = postDict[postId];
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          content: generateMessageFromPost(post),
+          content: post.text,
         },
       });
     }
+    res.status(400).send(`Bad request: unsupported command: ${name}`);
   }
-  
-  res.status(400).send(`Bad request: unsupported interaction type: ${name}`);
+
+  res.status(400).send(`Bad request: unsupported interaction type: ${type}`);
 });
 
 app.get("/", async function (req, res, next) {
@@ -120,7 +137,7 @@ app.listen(PORT, async function ()  {
   setInterval(async function() {
     const newPostIds = await regeneratePosts();
     for (const id of newPostIds) {
-      await sendMessage(process.env.CHANNEL_ID, generateMessageFromPost(postDict[id]));
+      await sendMessage(process.env.CHANNEL_ID, post.text);
     }
   }, 20000);
 });
@@ -132,18 +149,6 @@ function wrappedVerifyKeyMiddleware(clientPublicKey) {
   else {
     return bodyParser.json();
   }
-}
-
-function generateMessageFromPost(post) {
-  let message = post.text.replace(/<\/?[^>]+(>|$)/g, "");
-  if (post.imageUrls.length > 0) {
-    if (post.imageUrls.length <= 3) {
-      message = message + '\n' + post.imageUrls.join(' ');
-    } else {
-      message = message + '\n' + post.imageUrls.join(',\n');
-    }
-  }
-  return message;
 }
 
 function loadFromDataStore() {
@@ -173,6 +178,16 @@ async function regeneratePosts() {
 function regenerateSortedPostIds() {
   const sorted = Object.keys(postDict);
   sorted.sort((a, b) => b - a);
+
+  for (const query of supportedQueries) {
+    for (const id of sorted) {
+      if (postDict[id].text.slice(0, 50).includes(query)) {
+        queryToPostId[query] = id;
+        break;
+      }
+    }
+  }
+
   sortedPostIds.length = 0;
   sortedPostIds.push(...sorted);
 }

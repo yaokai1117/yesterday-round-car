@@ -105,6 +105,25 @@ export const ARKNIGHTS_NEWS_COMMAND = {
       name: 'index',
       description: 'See an older post.',
     },
+    {
+      type: 3,
+      name: 'query',
+      description: 'Try some query? Maybe it will work...',
+      choices: [
+        {
+          name: '更新公告',
+          value: '更新公告'
+        },
+        {
+          name: '常驻标准寻访',
+          value: '更新公告'
+        },
+        {
+          name: '新装限时上架',
+          value: '新装限时上架'
+        }
+      ]
+    }
   ],
   type: 1,
 };

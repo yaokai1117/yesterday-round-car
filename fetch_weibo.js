@@ -1,10 +1,12 @@
 
 import fetch from 'node-fetch';
 import fs from 'fs';
+import TurndownService from 'turndown';
 import { WeiboPost } from './weibo_utils.js';
 
 const WEIBO_API_PREFIX = 'https://m.weibo.cn/';
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/images/';
+const turndownService = new TurndownService();
 
 // Fetch the last 10 post of a user, return the new post ids.
 export async function fetchLatestPosts(userId, postDict) {
@@ -39,9 +41,26 @@ export async function fetchLatestPosts(userId, postDict) {
     if (post.imageUrls.length != 0) {
       await repopulateImageUrls(post);
     }
+    // Format text.
+    post.text = generateMessageFromPost(post);
     postDict[post.id] = post;
   }
   return newPostIds;
+}
+
+function generateMessageFromPost(post) {
+  // Remove all links.
+  let message = post.text.replace(/<\/?a[^>]+(>|$)/g, "");
+  // HTML to markdown.
+  message = turndownService.turndown(message);
+  if (post.imageUrls.length > 0) {
+    if (post.imageUrls.length <= 3) {
+      message = message + '\n' + post.imageUrls.join(' ');
+    } else {
+      message = message + '\n' + post.imageUrls.slice(0, 3).join(' ')  + ' ' + post.imageUrls.slice(3).join(',\n') + ',';
+    }
+  }
+  return message;
 }
 
 async function populateLongText(weiboPost) {
