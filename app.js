@@ -119,27 +119,31 @@ app.listen(PORT, async function ()  {
   console.log(process.env.NODE_ENV);
   
   // Reload from json file.
-  // loadFromDataStore();
+  loadFromDataStore();
   // Reload by sending RPCs.
-  await regeneratePosts();
-  
-  // Delete old commands.
-  // await deleteCommands(process.env.APP_ID, process.env.GUILD_ID, ['arknights-news', 'cahir']);
+  // await regeneratePosts();
 
-  // Register commands.
-  await createCommandsIfNotExists(process.env.APP_ID, process.env.GUILD_ID, [
-    TEST_COMMAND,
-    ARKNIGHTS_NEWS_COMMAND,
-    CAHIR_COMMAND,
-  ]);
+  for (const guildId of process.env.GUILD_ID.split(',')) {
+    // Delete old commands.
+    // await deleteCommands(process.env.APP_ID, guildId, ['arknights-news', 'cahir']);
 
-  // Fetch new posts every 20 seconds.
+    // Register commands.
+    await createCommandsIfNotExists(process.env.APP_ID, guildId, [
+      TEST_COMMAND,
+      ARKNIGHTS_NEWS_COMMAND,
+      CAHIR_COMMAND,
+    ]);
+  }
+
+  // Fetch new posts every 30 seconds.
   setInterval(async function() {
     const newPostIds = await regeneratePosts();
     for (const id of newPostIds) {
-      await sendMessage(process.env.CHANNEL_ID, post.text);
+      for (const channelId of process.env.CHANNEL_ID.split(',')) {
+        await sendMessage(channelId, postDict[id].text);
+      }
     }
-  }, 20000);
+  }, 30000);
 });
 
 function wrappedVerifyKeyMiddleware(clientPublicKey) {

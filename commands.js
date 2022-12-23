@@ -116,7 +116,7 @@ export const ARKNIGHTS_NEWS_COMMAND = {
         },
         {
           name: '常驻标准寻访',
-          value: '更新公告'
+          value: '常驻标准寻访'
         },
         {
           name: '新装限时上架',
