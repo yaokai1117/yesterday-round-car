@@ -50,7 +50,7 @@ export async function fetchLatestPosts(userId, postDict) {
 
 function generateMessageFromPost(post) {
   // Remove all links.
-  let message = post.text.replace(/<\/?a[^>]+(>|$)/g, "");
+  let message = post.text.replace(/<\/?(a|img)[^>]+(>|$)/g, "");
   // HTML to markdown.
   message = turndownService.turndown(message);
   if (post.imageUrls.length > 0) {
