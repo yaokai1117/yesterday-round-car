@@ -17,7 +17,7 @@ export class WeiboPost {
     this.isRetweet = mblog['retweeted_status'] != undefined;
     if (this.isRetweet) {
       const retweet = mblog['retweeted_status']
-      this.text = retweet['text'];
+      this.text = this.text + '\n转发微博：' + retweet['text'];
       this.imageUrls = [];
       const retweetPics = retweet['pics'];
       if (retweetPics != undefined && retweetPics.length > 0) {

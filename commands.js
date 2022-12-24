@@ -81,24 +81,24 @@ export async function deleteGuildCommand(appId, guildId, commandId) {
   }
 }
 
-// Simple test command
-export const TEST_COMMAND = {
-  name: 'test',
-  description: 'Basic guild command',
+// Help command.
+export const HELP_COMMAND = {
+  name: 'arknights-help',
+  description: 'List available commands and descriptions.',
   type: 1,
 };
 
 // Command to show a photo of Cahir!
 export const CAHIR_COMMAND = {
   name: 'cahir',
-  description: 'Meow!',
+  description: 'Meet Cahir the orange cat!',
   type: 1,
 }
 
 // Command to get latest arknigts news.
 export const ARKNIGHTS_NEWS_COMMAND = {
   name: 'arknights-news',
-  description: 'Get the latests updates of this game.',
+  description: 'Get the latest news of arknights from its official Weibo.',
   options: [
     {
       type: 3,
