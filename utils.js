@@ -26,9 +26,25 @@ export async function DiscordRequest(endpoint, options) {
 }
 
 export async function sendMessage(channelId, message) {
-  await DiscordRequest(`channels/${channelId}/messages`, { method: 'POST', body: {
-    content: message
-  } });
+  try {
+    await DiscordRequest(`channels/${channelId}/messages`, { method: 'POST', body: {
+      content: message
+    } });
+    return true;
+  } catch (error) {
+    console.log(`${Date.now()} ${error}`);
+    return false;
+  }
+}
+
+export async function verifyChannelAccessible(channelId) {
+  try {
+    await DiscordRequest(`channels/${channelId}`, { method: 'GET' });
+    return true;
+  } catch (error) {
+    console.log(`${Date.now()} ${error}`);
+    return false;
+  }
 }
 
 export function capitalize(str) {
@@ -40,4 +56,8 @@ export function extractOptionValue(options, name) {
     if (option.name == name) return option.value;
   }
   return undefined;
+}
+
+export function hasDigitsOnly(value) {
+  return /^-?\d+$/.test(value);
 }

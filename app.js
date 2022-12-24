@@ -7,7 +7,7 @@ import {
   InteractionResponseType,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { sendMessage, extractOptionValue } from './utils.js';
+import { sendMessage, extractOptionValue, verifyChannelAccessible, hasDigitsOnly } from './utils.js';
 import { fetchLatestPosts } from './fetch_weibo.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
@@ -82,16 +82,20 @@ const ARKNIGHTS_NEWS_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_NEWS_COMMAND
   });
 });
 
-const ARKNIGHTS_SUBSCRIBE_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_SUBSCRIBE_COMMAND.name, ARKNIGHTS_SUBSCRIBE_COMMAND.description, function (data, res) {
+const ARKNIGHTS_SUBSCRIBE_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_SUBSCRIBE_COMMAND.name, ARKNIGHTS_SUBSCRIBE_COMMAND.description, async function (data, res) {
   const options = data.options;
   let userId = extractOptionValue(options, 'weibo-user-id');
   let channelId  = extractOptionValue(options, 'channel-id');
+
+  const verifyInput = hasDigitsOnly(userId) && userId.length > 7 && hasDigitsOnly(channelId) && await verifyChannelAccessible(channelId);
 
   let message;
   if (!(userId in weiboUserIdToChannels)) {
     weiboUserIdToChannels[userId] = [];
   }
-  if (weiboUserIdToChannels[userId].includes(channelId)) {
+  if (!verifyInput) {
+    message = 'Input is invalid or not accessible.';
+  } else if (weiboUserIdToChannels[userId].includes(channelId)) {
     message = 'Already subscribed before, nothing changed.';
   } else {
     weiboUserIdToChannels[userId].push(channelId);
@@ -273,7 +277,7 @@ async function regeneratePosts(userId, isArknightsOfficial, postDict) {
   } catch (error) {
     exceptionCount++;
     console.log(`${Date.now()} Exception count: ${exceptionCount}`);
-    console.log(`${Date.now()} error`);
+    console.log(`${Date.now()} ${error}`);
     if (exceptionCount > 100) {
       throw Error('Met more than 100 excpetions, shut down the server.');
     }
