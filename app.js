@@ -72,7 +72,7 @@ app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), as
 
     // "arknights-news" guild command
     if (name === 'arknights-news' && id) {
-      let newsIndex = 0;
+      let newsIndex = Math.floor(Math.random() * 10);
       let postId;
       const options = req.body.data.options;
       // Parse options if any.

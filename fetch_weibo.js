@@ -28,7 +28,7 @@ export async function fetchLatestPosts(userId, postDict) {
   if (!res.ok || data['ok'] != 1 || data['data'] == undefined) {
     console.log(res.status);
     console.log(JSON.stringify(data));
-    return;
+    return newPostIds;
   }
   const cards = data['data']['cards'];
   for (const card of cards) {

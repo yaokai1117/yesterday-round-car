@@ -5,7 +5,7 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "cross-env NODE_ENV=prod node app.js > app.log 2>&1",
+    "start": "cross-env NODE_ENV=prod node app.js > ./public/app.log 2>&1",
     "dev": "cross-env NODE_ENV=dev nodemon app.js --ignore datastore.json"
   },
   "author": "",
