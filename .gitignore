@@ -3,5 +3,5 @@ node_modules
 package-lock.json
 *.pem
 *.log
-public/images/*
+public/*
 datastore.json
