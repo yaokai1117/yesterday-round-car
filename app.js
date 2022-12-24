@@ -30,6 +30,7 @@ const isInProd = process.env.NODE_ENV == "prod";
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/';
 
 const DATA_STORE_FILE_PATH = 'datastore.json';
+const SUBSCRIPTION_FILE_PATH = 'subscription.json';
 
 // Those are only used by arknights official weibo.
 const ARKNIGHTS_OFFICTIAL_ID = process.env.WEIBO_USER_ID;
@@ -42,7 +43,7 @@ const queryToPostId = {};
 const weiboUserIdToPosts = {};
 // A map from Weibo user id to {a list of supported channels}.
 const weiboUserIdToChannels = {};
-// A map from Weibo user id to {a map from channel id to the interval id of fecching data from them}.
+// A map from Weibo user id to the interval id of fecching data from them.
 // Used to cancel subscription.
 // We don't need this for arknights official, sine we won't need to cancel the subscription.
 const weiboUserIdToIntervalId = {};
@@ -93,12 +94,12 @@ const ARKNIGHTS_SUBSCRIBE_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_SUBSCRI
     message = 'Already subscribed before, nothing changed.';
   } else {
     weiboUserIdToChannels[userId].push(channelId);
-    const intervalId = subscribeToWeiboUser(userId, false, function () {});
     if (!(userId in weiboUserIdToIntervalId)) {
-      weiboUserIdToIntervalId[userId] = {};
+      weiboUserIdToIntervalId[userId] = subscribeToWeiboUser(userId, false, function () {});
     }
-    weiboUserIdToIntervalId[userId][channelId] = intervalId;
     message = 'Subscribed!';
+    dumpSubscriptionToDataStore();
+    console.log(`Subscribed to weibo user ${userId} in channel ${channelId}`);
   }
 
   return res.send({
@@ -121,17 +122,18 @@ const ARKNIGHTS_UNSUBSCRIBE_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_UNSUB
   if (!weiboUserIdToChannels[userId].includes(channelId)) {
     message = 'Did not subscribe this, or already unsubscribed.';
   } else {
-    weiboUserIdToChannels[userId].slice(weiboUserIdToChannels[userId].indexOf(channelId), 1);
+    weiboUserIdToChannels[userId].splice(weiboUserIdToChannels[userId].indexOf(channelId), 1);
     if (!(userId in weiboUserIdToIntervalId)) {
-      weiboUserIdToIntervalId[userId] = {};
-    }
-    if (!(channelId in weiboUserIdToIntervalId[userId])) {
       message = 'Did not subscribe this, or already unsubscribed.';
     } else {
-      const intervalId = weiboUserIdToIntervalId[userId][channelId];
-      clearInterval(intervalId);
-      delete weiboUserIdToIntervalId[userId][channelId];
+      if (weiboUserIdToChannels[userId].length == 0) {
+        const intervalId = weiboUserIdToIntervalId[userId];
+        clearInterval(intervalId);
+        delete weiboUserIdToIntervalId[userId];
+      }
       message = 'Unsubscribed!';
+      dumpSubscriptionToDataStore();
+      console.log(`Unsubscribed weibo user ${userId} in channel ${channelId}`);
     }
   }
 
@@ -182,6 +184,7 @@ app.listen(PORT, async function () {
 
   weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID] = {};
   weiboUserIdToChannels[ARKNIGHTS_OFFICTIAL_ID] = ARKNIGHTS_CHANNELS;
+  loadSubscriptionFromDataStore();
 
   // Reload from json file.
   loadFromDataStore();
@@ -302,4 +305,24 @@ function loadFromDataStore() {
     weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID][key] = storedData[key];
   }
   regenerateIndex();
+}
+
+// Only used by arknights official weibo.
+function loadSubscriptionFromDataStore() {
+  const subscriptionData = JSON.parse(fs.readFileSync(SUBSCRIPTION_FILE_PATH));
+  for (const userId in subscriptionData) {
+    if (userId == ARKNIGHTS_OFFICTIAL_ID) continue;
+    weiboUserIdToPosts[userId] = {};
+    weiboUserIdToChannels[userId] = subscriptionData[userId];
+    weiboUserIdToIntervalId[userId] = subscribeToWeiboUser(userId, false, function () {});
+  }
+}
+
+function dumpSubscriptionToDataStore() {
+  const subscriptionData = {};
+  for (const userId in weiboUserIdToChannels) {
+    if (userId == ARKNIGHTS_OFFICTIAL_ID) continue;
+    subscriptionData[userId] = weiboUserIdToChannels[userId];
+  }
+  fs.writeFileSync(SUBSCRIPTION_FILE_PATH, JSON.stringify(subscriptionData));
 }

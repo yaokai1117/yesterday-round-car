@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "cross-env NODE_ENV=prod node app.js > ./public/app.log 2>&1",
-    "dev": "cross-env NODE_ENV=dev nodemon app.js --ignore datastore.json"
+    "dev": "cross-env NODE_ENV=dev nodemon app.js --ignore datastore.json --ignore subscription.json"
   },
   "author": "",
   "license": "ISC",
