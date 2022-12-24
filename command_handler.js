@@ -18,12 +18,6 @@ export class CommandHandlerRegistry {
     this.handlers[commandHandler.name] = commandHandler;
   }
 
-  unregister(commandName) {
-    if (commandName in this.handlers) {
-      delete this.handlers[commandName];
-    }
-  }
-
   handleCommand(data, res) {
     const { name } = data;
     const handler = this.handlers[name];

@@ -7,31 +7,45 @@ import {
   InteractionResponseType,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { getRandomEmoji, sendMessage } from './utils.js';
+import { sendMessage, extractOptionValue } from './utils.js';
 import { fetchLatestPosts } from './fetch_weibo.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
+  ARKNIGHTS_SUBSCRIBE_COMMAND,
+  ARKNIGHTS_UNSUBSCRIBE_COMMAND,
   CAHIR_COMMAND,
   HELP_COMMAND,
   createCommandsIfNotExists,
   deleteCommands,
 } from './commands.js';
-import {CommandHandler, CommandHandlerRegistry} from './command_handler.js';
-import { Console } from 'console';
+import { CommandHandler, CommandHandlerRegistry } from './command_handler.js';
 
 // Create an express app
 const app = express();
 // Get port, or default to 8080
 const PORT = process.env.PORT || 8080;
 
+const isInProd = process.env.NODE_ENV == "prod";
+
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/';
 
 const DATA_STORE_FILE_PATH = 'datastore.json';
 
-const postDict = {};
+// Those are only used by arknights official weibo.
+const ARKNIGHTS_OFFICTIAL_ID = process.env.WEIBO_USER_ID;
+const ARKNIGHTS_CHANNELS = process.env.CHANNEL_ID.split(',');
 const sortedPostIds = [];
 const supportedQueries = ['更新公告', '常驻标准寻访', '新装限时上架'];
 const queryToPostId = {};
+
+// A map from Weibo user id to {a map from Weibo post id to post content}.
+const weiboUserIdToPosts = {};
+// A map from Weibo user id to {a list of supported channels}.
+const weiboUserIdToChannels = {};
+// A map from Weibo user id to {a map from channel id to the interval id of fecching data from them}.
+// Used to cancel subscription.
+// We don't need this for arknights official, sine we won't need to cancel the subscription.
+const weiboUserIdToIntervalId = {};
 let exceptionCount = 0;
 
 const commandHandlerRegistry = new CommandHandlerRegistry([]);
@@ -51,22 +65,80 @@ const ARKNIGHTS_NEWS_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_NEWS_COMMAND
   const options = data.options;
   // Parse options if any.
   if (options != undefined) {
-    for (const option of options) {
-      if (option.name == 'index') {
-        newsIndex = Math.min(9, option.value - 1);
-      }
-      if (option.name == 'query') {
-        postId = queryToPostId[option.value];
-      }
-    }
+    const indexFromOption = extractOptionValue(options, 'index');
+    if (indexFromOption) newsIndex = indexFromOption;
+    postId = extractOptionValue(options, 'query');
   }
   if (postId == undefined) postId = sortedPostIds[newsIndex];
 
-  const post = postDict[postId];
+  const post = weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID][postId];
   return res.send({
     type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
     data: {
       content: post.text,
+    },
+  });
+});
+
+const ARKNIGHTS_SUBSCRIBE_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_SUBSCRIBE_COMMAND.name, ARKNIGHTS_SUBSCRIBE_COMMAND.description, function (data, res) {
+  const options = data.options;
+  let userId = extractOptionValue(options, 'weibo-user-id');
+  let channelId  = extractOptionValue(options, 'channel-id');
+
+  let message;
+  if (!(userId in weiboUserIdToChannels)) {
+    weiboUserIdToChannels[userId] = [];
+  }
+  if (weiboUserIdToChannels[userId].includes(channelId)) {
+    message = 'Already subscribed before, nothing changed.';
+  } else {
+    weiboUserIdToChannels[userId].push(channelId);
+    const intervalId = subscribeToWeiboUser(userId, false, function () {});
+    if (!(userId in weiboUserIdToIntervalId)) {
+      weiboUserIdToIntervalId[userId] = {};
+    }
+    weiboUserIdToIntervalId[userId][channelId] = intervalId;
+    message = 'Subscribed!';
+  }
+
+  return res.send({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: message,
+    },
+  });
+});
+
+const ARKNIGHTS_UNSUBSCRIBE_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_UNSUBSCRIBE_COMMAND.name, ARKNIGHTS_UNSUBSCRIBE_COMMAND.description, function (data, res) {
+  const options = data.options;
+  let userId = extractOptionValue(options, 'weibo-user-id');
+  let channelId  = extractOptionValue(options, 'channel-id');
+
+  let message;
+  if (!(userId in weiboUserIdToChannels)) {
+    weiboUserIdToChannels[userId] = [];
+  }
+  if (!weiboUserIdToChannels[userId].includes(channelId)) {
+    message = 'Did not subscribe this, or already unsubscribed.';
+  } else {
+    weiboUserIdToChannels[userId].slice(weiboUserIdToChannels[userId].indexOf(channelId), 1);
+    if (!(userId in weiboUserIdToIntervalId)) {
+      weiboUserIdToIntervalId[userId] = {};
+    }
+    if (!(channelId in weiboUserIdToIntervalId[userId])) {
+      message = 'Did not subscribe this, or already unsubscribed.';
+    } else {
+      const intervalId = weiboUserIdToIntervalId[userId][channelId];
+      clearInterval(intervalId);
+      delete weiboUserIdToIntervalId[userId][channelId];
+      message = 'Unsubscribed!';
+    }
+  }
+
+  return res.send({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: message,
     },
   });
 });
@@ -104,19 +176,24 @@ app.get("/", async function (req, res, next) {
 // Serve static files.
 app.use('/static', express.static('public'));
 
-app.listen(PORT, async function ()  {
+app.listen(PORT, async function () {
   console.log('Listening on port', PORT);
-  console.log(process.env.NODE_ENV);
-  
+  console.log(`Is in prod: ${isInProd}`);
+
+  weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID] = {};
+  weiboUserIdToChannels[ARKNIGHTS_OFFICTIAL_ID] = ARKNIGHTS_CHANNELS;
+
   // Reload from json file.
   loadFromDataStore();
   // Reload by sending RPCs.
-  // await regeneratePosts();
+  // await regeneratePosts(ARKNIGHTS_OFFICTIAL_ID, true, weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID]);
 
   // Register command handlers.
   [
-    HELP_COMMAND_HANDLER, 
-    ARKNIGHTS_NEWS_COMMAND_HANDLER, 
+    HELP_COMMAND_HANDLER,
+    ARKNIGHTS_NEWS_COMMAND_HANDLER,
+    ARKNIGHTS_SUBSCRIBE_COMMAND_HANDLER,
+    ARKNIGHTS_UNSUBSCRIBE_COMMAND_HANDLER,
     CAHIR_COMMAND_HANDLER
   ].forEach((handler) => commandHandlerRegistry.register(handler));
 
@@ -127,24 +204,19 @@ app.listen(PORT, async function ()  {
     // Register commands.
     await createCommandsIfNotExists(process.env.APP_ID, guildId, [
       ARKNIGHTS_NEWS_COMMAND,
+      ARKNIGHTS_SUBSCRIBE_COMMAND,
+      ARKNIGHTS_UNSUBSCRIBE_COMMAND,
       CAHIR_COMMAND,
       HELP_COMMAND,
     ]);
   }
 
   // Fetch new posts every 30 seconds.
-  setInterval(async function() {
-    const newPostIds = await regeneratePosts();
-    for (const id of newPostIds) {
-      for (const channelId of process.env.CHANNEL_ID.split(',')) {
-        await sendMessage(channelId, postDict[id].text);
-      }
-    }
-  }, 30000);
+  subscribeToWeiboUser(ARKNIGHTS_OFFICTIAL_ID, true, regenerateIndex);
 });
 
 function wrappedVerifyKeyMiddleware(clientPublicKey) {
-  if (process.env.NODE_ENV == "prod") {
+  if (isInProd) {
     return verifyKeyMiddleware(clientPublicKey);
   }
   else {
@@ -152,23 +224,52 @@ function wrappedVerifyKeyMiddleware(clientPublicKey) {
   }
 }
 
-function loadFromDataStore() {
-  const storedData = JSON.parse(fs.readFileSync(DATA_STORE_FILE_PATH));
-  for (const key in storedData) {
-    postDict[key] = storedData[key];
+function subscribeToWeiboUser(userId, isArknightsOfficial, followUpFunction) {
+  const delayInSeconds =  isInProd ?
+    (isArknightsOfficial ? 30 : 60 + Math.round(Math.random() * 60)) 
+    : 20;
+  if (!(userId in weiboUserIdToPosts)) {
+    weiboUserIdToPosts[userId] = {};
   }
-  regenerateSortedPostIds();
+  const postDict = weiboUserIdToPosts[userId];
+
+  const intervalId = setInterval(async function () {
+    const isFirstTime = Object.keys(postDict).length == 0;
+    const newPostIds = await regeneratePosts(userId, isArknightsOfficial, postDict);
+    followUpFunction();
+    if (!isInProd) {
+      console.log(`Is first time: ${isFirstTime}`);
+      console.log(`New post ids: ${newPostIds}`);
+      console.log(`Channel ids: ${weiboUserIdToChannels[userId]}`);
+    }
+    if (isFirstTime) return;
+    for (const id of newPostIds) {
+      for (const channelId of weiboUserIdToChannels[userId]) {
+        if (id in postDict && postDict[id].text != undefined) {
+          await sendMessage(channelId, postDict[id].text);
+        }
+      }
+    }
+  }, delayInSeconds * 1000);
+  return intervalId;
 }
 
-async function regeneratePosts() {
+// Regenerate posts for a cerain Weibo account, return new post ids.
+async function regeneratePosts(userId, isArknightsOfficial, postDict) {
+  if (!isInProd) {
+    console.log(`Regenerating posts for weibo user: ${userId}, is official: ${isArknightsOfficial}`);
+  }
   try {
-    const newPostIds = await fetchLatestPosts(process.env.WEIBO_USER_ID, postDict);
-    regenerateSortedPostIds();
-    fs.writeFileSync(DATA_STORE_FILE_PATH, JSON.stringify(postDict));
+    const newPostIds = await fetchLatestPosts(userId, postDict);
+    // We only dump official posts to offline storage.
+    if (isArknightsOfficial) {
+      fs.writeFileSync(DATA_STORE_FILE_PATH, JSON.stringify(postDict));
+    }
     return newPostIds;
   } catch (error) {
-    console.log(error);
     exceptionCount++;
+    console.log(`${Date.now()} Exception count: ${exceptionCount}`);
+    console.log(`${Date.now()} error`);
     if (exceptionCount > 100) {
       throw Error('Met more than 100 excpetions, shut down the server.');
     }
@@ -176,13 +277,14 @@ async function regeneratePosts() {
   }
 }
 
-function regenerateSortedPostIds() {
-  const sorted = Object.keys(postDict);
+// Only used by arknights official weibo.
+function regenerateIndex() {
+  const sorted = Object.keys(weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID]);
   sorted.sort((a, b) => b - a);
 
   for (const query of supportedQueries) {
     for (const id of sorted) {
-      if (postDict[id].text.slice(0, 50).includes(query)) {
+      if (weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID][id].text.slice(0, 50).includes(query)) {
         queryToPostId[query] = id;
         break;
       }
@@ -191,4 +293,13 @@ function regenerateSortedPostIds() {
 
   sortedPostIds.length = 0;
   sortedPostIds.push(...sorted);
+}
+
+// Only used by arknights official weibo.
+function loadFromDataStore() {
+  const storedData = JSON.parse(fs.readFileSync(DATA_STORE_FILE_PATH));
+  for (const key in storedData) {
+    weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID][key] = storedData[key];
+  }
+  regenerateIndex();
 }

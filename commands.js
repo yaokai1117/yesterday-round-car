@@ -127,3 +127,45 @@ export const ARKNIGHTS_NEWS_COMMAND = {
   ],
   type: 1,
 };
+
+// Command to subscribe to a weibo account.
+export const ARKNIGHTS_SUBSCRIBE_COMMAND = {
+  name: 'arknights-subscribe',
+  description: 'Subscribe to a weibo user, and posts its updates to a channel.',
+  options: [
+    {
+      type: 3,
+      name: 'weibo-user-id',
+      description: 'Id of the weibo user.',
+      required: true,
+    },
+    {
+      type: 3,
+      name: 'channel-id',
+      description: 'Id of the channel to post to.',
+      required: true,
+    }
+  ],
+  type: 1,
+};
+
+// Command to unsubscribe to a weibo account.
+export const ARKNIGHTS_UNSUBSCRIBE_COMMAND = {
+  name: 'arknights-unsubscribe',
+  description: 'Unsubscribe a channel from a weibo user.',
+  options: [
+    {
+      type: 3,
+      name: 'weibo-user-id',
+      description: 'Id of the weibo user.',
+      required: true,
+    },
+    {
+      type: 3,
+      name: 'channel-id',
+      description: 'Id of the channel.',
+      required: true,
+    }
+  ],
+  type: 1,
+};
