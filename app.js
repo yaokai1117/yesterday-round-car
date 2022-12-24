@@ -68,7 +68,8 @@ const ARKNIGHTS_NEWS_COMMAND_HANDLER = new CommandHandler(ARKNIGHTS_NEWS_COMMAND
   if (options != undefined) {
     const indexFromOption = extractOptionValue(options, 'index');
     if (indexFromOption) newsIndex = indexFromOption;
-    postId = extractOptionValue(options, 'query');
+    const queryFromOption = extractOptionValue(options, 'query');
+    if (queryFromOption) postId = queryToPostId[queryFromOption];
   }
   if (postId == undefined) postId = sortedPostIds[newsIndex];
 
