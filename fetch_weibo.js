@@ -6,6 +6,7 @@ import { WeiboPost } from './weibo_utils.js';
 
 const WEIBO_API_PREFIX = 'https://m.weibo.cn/';
 const PUBLIC_FILE_PREFIX = 'https://ayk1117.link/static/images/';
+const lotteryCombination = ['恭喜', '抽奖', '用户'];
 const turndownService = new TurndownService();
 
 // Fetch the last 10 post of a user, return the new post ids.
@@ -34,16 +35,17 @@ export async function fetchLatestPosts(userId, postDict) {
   for (const card of cards) {
     const post = new WeiboPost(card);
     if (post.id in postDict) continue;
-    newPostIds.push(post.id);
     if (post.isLongText) {
       await populateLongText(post);
     }
+    if (isLotteryPost(post)) continue;
     if (post.imageUrls.length != 0) {
       await repopulateImageUrls(post);
     }
     // Format text.
     post.text = generateMessageFromPost(post);
     postDict[post.id] = post;
+    newPostIds.push(post.id);
   }
   return newPostIds;
 }
@@ -102,4 +104,12 @@ async function downloadImage(imageUrl, filename) {
     console.log(JSON.stringify(data));
   }
   res.body.pipe(fs.createWriteStream(filepath));
+}
+
+// A post is a lottery post if it contains all the keywords in [lotteryCombination].
+export function isLotteryPost(weiboPost) {
+  for (const keyword of lotteryCombination) {
+    if (!weiboPost.text.includes(keyword)) return false;
+  }
+  return true;
 }

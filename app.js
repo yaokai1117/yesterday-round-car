@@ -8,7 +8,7 @@ import {
   verifyKeyMiddleware,
 } from 'discord-interactions';
 import { sendMessage, extractOptionValue, verifyChannelAccessible, hasDigitsOnly } from './utils.js';
-import { fetchLatestPosts } from './fetch_weibo.js';
+import { fetchLatestPosts, isLotteryPost } from './fetch_weibo.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
   ARKNIGHTS_SUBSCRIBE_COMMAND,
@@ -307,6 +307,7 @@ function regenerateIndex() {
 function loadFromDataStore() {
   const storedData = JSON.parse(fs.readFileSync(DATA_STORE_FILE_PATH));
   for (const key in storedData) {
+    if (isLotteryPost(storedData[key])) continue;
     weiboUserIdToPosts[ARKNIGHTS_OFFICTIAL_ID][key] = storedData[key];
   }
   regenerateIndex();
