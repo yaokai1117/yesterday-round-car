@@ -33,6 +33,7 @@ export async function fetchLatestPosts(userId, postDict) {
   }
   const cards = data['data']['cards'];
   for (const card of cards) {
+    if (!card.hasOwnProperty('mblog')) continue;
     const post = new WeiboPost(card);
     if (post.id in postDict) continue;
     if (post.isLongText) {
