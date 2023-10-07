@@ -7,7 +7,7 @@ import {
   InteractionResponseType,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { sendMessage, extractOptionValue, verifyChannelAccessible, hasDigitsOnly } from './utils.js';
+import { sendMessage, extractOptionValue, verifyChannelAccessible, hasDigitsOnly, editInteractionResponse } from './utils.js';
 import { fetchLatestPosts, isLotteryPost } from './fetch_weibo.js';
 import {
   ARKNIGHTS_NEWS_COMMAND,
@@ -165,15 +165,14 @@ const CAHIR_COMMAND_HANDLER = new CommandHandler(CAHIR_COMMAND.name, CAHIR_COMMA
 const ASK_COMMAND_HANDLER = new CommandHandler(ASK_COMMAND.name, ASK_COMMAND.description, async function (data, res) {
   const options = data.options;
   let question = extractOptionValue(options, 'question');
-
-  const response = await ask_prts(question)
-
-  return res.send({
-    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: {
-      content: response,
-    },
+  res.send({
+    type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
   });
+
+  const response = await ask_prts(question);
+  let message = question + '\n\n' + response;
+  await editInteractionResponse(data.applicationId, data.token, message);
+
 });
 
 /**
@@ -182,6 +181,8 @@ const ASK_COMMAND_HANDLER = new CommandHandler(ASK_COMMAND.name, ASK_COMMAND.des
 app.post('/interactions', wrappedVerifyKeyMiddleware(process.env.PUBLIC_KEY), async function (req, res) {
   // Interaction type and data
   const { type, data } = req.body;
+  data.token = req.body.token;
+  data.applicationId = req.body.application_id;
 
   if (type === InteractionType.PING) {
     return res.send({ type: InteractionResponseType.PONG });

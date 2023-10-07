@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { InteractionResponseType } from 'discord-interactions';
 import fetch from 'node-fetch';
 
 export async function DiscordRequest(endpoint, options) {
@@ -28,6 +29,18 @@ export async function DiscordRequest(endpoint, options) {
 export async function sendMessage(channelId, message) {
   try {
     await DiscordRequest(`channels/${channelId}/messages`, { method: 'POST', body: {
+      content: message
+    } });
+    return true;
+  } catch (error) {
+    console.log(`${Date.now()} ${error}`);
+    return false;
+  }
+}
+
+export async function editInteractionResponse(applicationId, token, message) {
+  try {
+    await DiscordRequest(`webhooks/${applicationId}/${token}/messages/@original`, { method: 'PATCH', body: {
       content: message
     } });
     return true;

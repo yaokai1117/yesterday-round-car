@@ -7,7 +7,11 @@ export async function ask_prts(question) {
   // Use node-fetch to make requests
   const res = await fetch(CHAT_API_URL, {
     method: 'POST',
-    body: JSON.stringify({'content': question})
+    body: JSON.stringify({content: question}),
+    headers: {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'User-Agent': 'DiscordBot',
+    },
   });
   
   const data = await res.json();
