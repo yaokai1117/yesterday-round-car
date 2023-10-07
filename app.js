@@ -13,12 +13,14 @@ import {
   ARKNIGHTS_NEWS_COMMAND,
   ARKNIGHTS_SUBSCRIBE_COMMAND,
   ARKNIGHTS_UNSUBSCRIBE_COMMAND,
+  ASK_COMMAND,
   CAHIR_COMMAND,
   HELP_COMMAND,
   createCommandsIfNotExists,
   deleteCommands,
 } from './commands.js';
 import { CommandHandler, CommandHandlerRegistry } from './command_handler.js';
+import { ask_prts } from './ask_prts.js';
 
 // Create an express app
 const app = express();
@@ -160,6 +162,20 @@ const CAHIR_COMMAND_HANDLER = new CommandHandler(CAHIR_COMMAND.name, CAHIR_COMMA
   });
 });
 
+const ASK_COMMAND_HANDLER = new CommandHandler(ASK_COMMAND.name, ASK_COMMAND.description, async function (data, res) {
+  const options = data.options;
+  let question = extractOptionValue(options, 'question');
+
+  const response = await ask_prts(question)
+
+  return res.send({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: response,
+    },
+  });
+});
+
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
  */
@@ -202,7 +218,8 @@ app.listen(PORT, async function () {
     ARKNIGHTS_NEWS_COMMAND_HANDLER,
     ARKNIGHTS_SUBSCRIBE_COMMAND_HANDLER,
     ARKNIGHTS_UNSUBSCRIBE_COMMAND_HANDLER,
-    CAHIR_COMMAND_HANDLER
+    CAHIR_COMMAND_HANDLER,
+    ASK_COMMAND_HANDLER,
   ].forEach((handler) => commandHandlerRegistry.register(handler));
 
   for (const guildId of process.env.GUILD_ID.split(',')) {
@@ -216,6 +233,7 @@ app.listen(PORT, async function () {
       ARKNIGHTS_UNSUBSCRIBE_COMMAND,
       CAHIR_COMMAND,
       HELP_COMMAND,
+      ASK_COMMAND,
     ]);
   }
 

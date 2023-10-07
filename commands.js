@@ -95,6 +95,21 @@ export const CAHIR_COMMAND = {
   type: 1,
 }
 
+// Command to use arknights_ask_prts
+export const ASK_COMMAND = {
+  name: 'ask',
+  description: 'Ask me a question!',
+  options: [
+    {
+      type: 3,
+      name: 'question',
+      description: 'Your question.',
+      required: true,
+    }
+  ],
+  type: 1,
+}
+
 // Command to get latest arknigts news.
 export const ARKNIGHTS_NEWS_COMMAND = {
   name: 'arknights-news',
